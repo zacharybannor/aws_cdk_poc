@@ -6,6 +6,8 @@ from aws_cdk_poc.aws_cdk_poc_stack import AwsCdkPocStack
 
 
 app = core.App()
-AwsCdkPocStack(app, "aws-cdk-poc")
+stack = AwsCdkPocStack(app, "aws-cdk-poc")
+
+stack.create_stack()
 
 app.synth()
