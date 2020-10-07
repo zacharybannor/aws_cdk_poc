@@ -69,8 +69,6 @@ class VMDCoreFargateService(core.Construct):
         for k,v in kwargs.items():
             setattr(self, k, v)
 
-
-
         task_image = _ecs.ContainerImage.from_registry(image)
         task_image_options = _ecs_patterns.ApplicationLoadBalancedTaskImageOptions(image=task_image)
         self.fargate_service = _ecs_patterns.ApplicationLoadBalancedFargateService(self, id=id, cluster=ecs_cluster,
