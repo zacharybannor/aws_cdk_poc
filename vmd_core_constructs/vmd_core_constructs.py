@@ -17,7 +17,7 @@ from datetime import datetime
 import os
 
 class VMDCoreS3(core.Construct):
-  def __init__(self, scope: core.Construct, id: str, bucket_name: str, *, removal_policy='destroy',
+  def __init__(self, scope: core.Construct, id: str, bucket_name: str, *, removal_policy: str='destroy',
                access_control=_s3.BucketAccessControl.PRIVATE, block_public_access=_s3.BlockPublicAccess.BLOCK_ALL,
                encryption=_s3.BucketEncryption.S3_MANAGED, **kwargs) -> None:
       super().__init__(scope, id)
