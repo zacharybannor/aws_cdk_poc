@@ -1,5 +1,5 @@
 from aws_cdk import core
-from vmd_core_constructs.vmd_core_constructs import VMDCoreS3, VMDCoreVPC
+from vmd_core_constructs.vmd_core_constructs import VMDCoreS3, VMDCoreVPC, VMDCoreFargateService
 import os
 from datetime import datetime
 
@@ -15,3 +15,9 @@ class AwsCdkPocStack(core.Stack):
                                 bucket_name=os.getenv('s3_name') + datetime.now().strftime('%S'))
 
         self.vpc = VMDCoreVPC(self, id=os.getenv('vpc_id'))
+
+        self.fargate_service = VMDCoreFargateService(self, id=os.getenv('fargate_id'),
+                                                     image=os.getenv('fargate_image'),
+                                                     ecs_cluster=None, vpc=self.vpc)
+
+

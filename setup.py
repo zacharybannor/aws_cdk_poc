@@ -32,6 +32,8 @@ setuptools.setup(
         "aws-cdk.aws_ssm",
         "aws-cdk.aws_logs",
         "aws-cdk.aws_ecr",
+        "aws-cdk.aws_ecs",
+        "aws-cdk.aws_ecs_patterns",
         "python-dotenv"
     ],
 
