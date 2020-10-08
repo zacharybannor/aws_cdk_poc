@@ -11,13 +11,13 @@ class AwsCdkPocStack(core.Stack):
 
     def create_stack(self):
 
-        self.bucket = VMDCoreS3(self, id=os.getenv('s3_id'),
+        VMDCoreS3(self, id=os.getenv('s3_id'),
                                 bucket_name=os.getenv('s3_name') + datetime.now().strftime('%S'))
 
-        self.vpc = VMDCoreVPC(self, id=os.getenv('vpc_id'))
+        vpc = VMDCoreVPC(self, id=os.getenv('vpc_id'))
 
-        self.fargate_service = VMDCoreFargateService(self, id=os.getenv('fargate_id'),
+        VMDCoreFargateService(self, id=os.getenv('fargate_id'),
                                                      image=os.getenv('fargate_image'),
-                                                     ecs_cluster=None, vpc=self.vpc)
+                                                     ecs_cluster=None, vpc=vpc)
 
 
