@@ -52,10 +52,10 @@ class VMDCoreCfnBucket(core.Construct):
         self.ignore_public_acls = public_access_control_props.ignore_public_acls
         self.restrict_public_buckets = public_access_control_props.restrict_public_buckets
 
-        if not transfer_acceleration == False:
-            acceleration_status = _s3.CfnBucket.AccelerateConfigurationProperty(acceleration_status='Enabled')
-        else:
+        if transfer_acceleration is False:
             acceleration_status = _s3.CfnBucket.AccelerateConfigurationProperty(acceleration_status='Suspended')
+        else:
+            acceleration_status = _s3.CfnBucket.AccelerateConfigurationProperty(acceleration_status='Enabled')
 
         self.acceleration_status = acceleration_status
 
