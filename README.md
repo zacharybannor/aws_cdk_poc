@@ -1,5 +1,5 @@
 
-# Welcome CDK Python!
+# Welcome to CDK Python!
 
 This is a project for Python development with CDK.
 
