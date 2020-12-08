@@ -21,19 +21,9 @@ setuptools.setup(
     install_requires=[
         "aws-cdk.core==1.66.0",
         "aws-cdk.aws_s3",
-        "aws-cdk.aws_dynamodb",
-        "aws-cdk.aws_lambda",
-        "aws-cdk.aws_lambda_event_sources",
-        "aws-cdk.aws_lambda_destinations",
+        "aws-cdk.aws_s3"
         "aws-cdk.aws_iam",
-        "aws-cdk.aws_glue",
-        "aws-cdk.aws_sagemaker",
-        "aws-cdk.aws_codecommit",
-        "aws-cdk.aws_ssm",
-        "aws-cdk.aws_logs",
-        "aws-cdk.aws_ecr",
-        "aws-cdk.aws_ecs",
-        "aws-cdk.aws_ecs_patterns",
+        "aws_s3_assets",
         "python-dotenv"
     ],
 
