@@ -1,5 +1,5 @@
 from aws_cdk import core
-from vmd_core_constructs.core_constructs import InfutorCoreS3, InfutorCoreEc2
+from vmd_core_constructs.core_constructs import InfutorCoreS3, InfutorAirflowPipeline
 from datetime import datetime
 import os
 
@@ -11,9 +11,6 @@ class InfutorAirflowStack(core.Stack):
 
     def create_stack(self):
 
-        bucket = InfutorCoreS3(self, id=os.getenv('s3_id'),
-                               bucket_name=os.getenv('s3_name') + '-' + datetime.now().strftime('%S'))
-
-        InfutorCoreEc2(self, id=os.getenv('ec2_id'), bucket=bucket)
+        InfutorAirflowPipeline(self, id=os.getenv('stack_id'))
 
 

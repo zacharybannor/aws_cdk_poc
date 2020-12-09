@@ -19,11 +19,14 @@ setuptools.setup(
     packages=setuptools.find_packages(where="aws_cdk_poc"),
 
     install_requires=[
-        "aws-cdk.core==1.66.0",
+        "aws-cdk.core==1.77.0",
         "aws-cdk.aws_s3",
         "aws-cdk.aws_s3"
         "aws-cdk.aws_iam",
-        "aws_s3_assets",
+        "aws-cdk.aws_s3_assets",
+        "aws-cdk.aws_secretsmanager",
+        "aws-cdk.aws_ssm",
+        "aws-cdk.aws_rds"
         "python-dotenv"
     ],
 

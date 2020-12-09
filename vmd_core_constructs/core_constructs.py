@@ -3,9 +3,13 @@ from aws_cdk import(
   aws_s3 as _s3,
   aws_ec2 as _ec2,
   aws_iam as _iam,
+  aws_secretsmanager as _secrets,
+  aws_rds as _rds,
+  aws_ssm as _ssm,
   aws_s3_assets as _assets)
 from datetime import datetime
 import os
+import json
 
 class InfutorCoreS3(core.Construct):
   def __init__(self, scope: core.Construct, id: str, bucket_name: str, *, removal_policy: str='destroy',
@@ -61,13 +65,16 @@ class InfutorCoreVPC(core.Construct):
                                                                            subnet_type=self.subnet_config)], **kwargs)
 
 
-class InfutorCoreEc2(core.Construct):
-    def __init__(self, scope: core.Construct, id: str, *, bucket: InfutorCoreS3, vpc_id: str=f'{id}_vpc',
+class InfutorAirflowPipeline(core.Construct):
+    def __init__(self, scope: core.Construct, id: str, *, bucket_id: str=f'{id}_bucket', vpc_id: str=f'{id}_vpc',
                  role_id: str=f'{id}_role', instance_type: str='t3.nano', nat_gateways: int=0, subnet_config: str='public',
                  **kwargs):
         super().__init__(scope, id)
 
-        self.bucket = bucket
+        self.id = id
+        self.bucket_id = bucket_id
+        self.vpc_id = vpc_id
+        self.role_id = role_id
         self.instance_type = instance_type
         self.nat_gateways = nat_gateways
 
@@ -85,12 +92,36 @@ class InfutorCoreEc2(core.Construct):
 
 
         #create the vpc
-        vpc = _ec2.Vpc(self, id=vpc_id, nat_gateways=nat_gateways,
-                            subnet_configuration=[_ec2.SubnetConfiguration(name='infutor_public',
+        self.vpc = _ec2.Vpc(self, id=vpc_id, nat_gateways=nat_gateways,
+                            subnet_configuration=[_ec2.SubnetConfiguration(name=f'infutor_{subnet_config.lower()}',
                                                                            subnet_type=self.subnet_config)], **kwargs)
 
+        #create the bucket
+        now = datetime.now().strftime('%S')
+        removal_policy = core.RemovalPolicy.DESTROY
+        access_control = _s3.BucketAccessControl.PUBLIC_READ_WRITE
+        encryption = _s3.BucketEncryption.UNENCRYPTED
+        block_public_access = None
+
+        self.bucket = _s3.Bucket(self, id=self.bucket_id, bucket_name=os.getenv('s3_name') + '-' + now,
+                            removal_policy=removal_policy, access_control=access_control,
+                            block_public_access=block_public_access, encryption=encryption)
+
+        #create secrets for db access and store arn in ssm
+        db_username = 'admin'
+        secret_str_generator = _secrets.SecretStringGenerator(
+            secret_string_template=json.dumps({'username': db_username}), exclude_punctuation=True,
+            include_space=False, generate_string_key='password')
+
+        self.db_access_secret = _secrets.Secret(self, id=f'{id}_secret', secret_name='infutor_airflow_db_secret',
+                                           generate_secret_string=secret_str_generator, removal_policy=removal_policy)
+
+        self.ssm_db_secret = _ssm.StringParameter(self, id=f'{id}_secret_ssm_param',
+                                                  parameter_name='infutor_airflow_db_secret',
+                                                  string_value=self.db_access_secret.secret_arn)
+
         #define ami
-        linux_ami = _ec2.MachineImage.latest_amazon_linux(
+        self.linux_ami = _ec2.MachineImage.latest_amazon_linux(
             generation=_ec2.AmazonLinuxGeneration.AMAZON_LINUX_2,
             storage=_ec2.AmazonLinuxStorage.GENERAL_PURPOSE,
             virtualization=_ec2.AmazonLinuxVirt.HVM,
@@ -98,14 +129,15 @@ class InfutorCoreEc2(core.Construct):
         )
 
         #create ssm role and add to policy
-        role = _iam.Role(self, id=role_id, role_name='InfutorSSMQuickStart',
+        self.ec2_role = _iam.Role(self, id=role_id, role_name='InfutorSSMQuickStart',
                               assumed_by=_iam.ServicePrincipal('ec2.amazonaws.com'))
 
-        role.add_managed_policy(_iam.ManagedPolicy.from_aws_managed_policy_name('service-role/AmazonEC2RoleforSSM'))
+        self.ec2_role.add_managed_policy(
+            _iam.ManagedPolicy.from_aws_managed_policy_name('service-role/AmazonEC2RoleforSSM'))
 
         #create the ec2 instance
         instance_type = _ec2.InstanceType(instance_type)
-        security_group = _ec2.SecurityGroup(self, id=f'{id}_sg', vpc=vpc,
+        security_group = _ec2.SecurityGroup(self, id=f'{id}_sg', vpc=self.vpc,
                                             description='allow ssh to ec2 instance',
                                             security_group_name='not_at_all_secure_security_group',
                                             allow_all_outbound=True)
@@ -114,8 +146,8 @@ class InfutorCoreEc2(core.Construct):
 
         self.instance = _ec2.Instance(self, id=id, instance_name='InfutorAirflowEC2',
                                       instance_type=instance_type,
-                                      machine_image=linux_ami,
-                                      vpc=vpc,
+                                      machine_image=self.linux_ami,
+                                      vpc=self.vpc,
                                       security_group=security_group
                                       )
 
