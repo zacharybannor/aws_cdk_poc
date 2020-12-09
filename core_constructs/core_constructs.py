@@ -67,16 +67,17 @@ class InfutorCoreVPC(core.Construct):
 
 class InfutorAirflowPipeline(core.Construct):
     def __init__(self, scope: core.Construct, id: str, *, bucket_id: str=f'{id}_bucket', vpc_id: str=f'{id}_vpc',
-                 role_id: str=f'{id}_role', instance_type: str='t3.nano', nat_gateways: int=0, subnet_config: str='public',
-                 **kwargs):
+                 role_id: str=f'{id}_role', ec2_instance_type: str='t3.nano', nat_gateways: int=0,
+                 subnet_config: str= 'public', **kwargs):
         super().__init__(scope, id)
 
         self.id = id
         self.bucket_id = bucket_id
         self.vpc_id = vpc_id
         self.role_id = role_id
-        self.instance_type = instance_type
+        self.instance_type = ec2_instance_type
         self.nat_gateways = nat_gateways
+        self.removal_policy = core.RemovalPolicy.DESTROY
 
         if subnet_config.lower() == 'public':
             sub_conf = _ec2.SubnetType.PUBLIC
@@ -98,29 +99,13 @@ class InfutorAirflowPipeline(core.Construct):
 
         #create the bucket
         now = datetime.now().strftime('%S')
-        removal_policy = core.RemovalPolicy.DESTROY
         access_control = _s3.BucketAccessControl.PUBLIC_READ_WRITE
         encryption = _s3.BucketEncryption.UNENCRYPTED
         block_public_access = None
 
         self.bucket = _s3.Bucket(self, id=self.bucket_id, bucket_name=os.getenv('s3_name') + '-' + now,
-                            removal_policy=removal_policy, access_control=access_control,
-                            block_public_access=block_public_access, encryption=encryption)
-
-        #create secrets for db access and store arn in ssm
-        db_username = 'admin'
-        secret_str_generator = _secrets.SecretStringGenerator(
-            secret_string_template=json.dumps({'username': db_username}), exclude_punctuation=True,
-            include_space=False, generate_string_key='password')
-
-        self.db_access_secret = _secrets.Secret(self, id=f'{id}_secret', secret_name='infutor_airflow_db_secret',
-                                           generate_secret_string=secret_str_generator, removal_policy=removal_policy)
-
-        self.ssm_db_secret = _ssm.StringParameter(self, id=f'{id}_secret_ssm_param',
-                                                  parameter_name='infutor_airflow_db_secret',
-                                                  string_value=self.db_access_secret.secret_arn)
-
-        #create mysql rds
+                                removal_policy=self.removal_policy, access_control=access_control,
+                                block_public_access=block_public_access, encryption=encryption)
 
 
         #define ami
@@ -139,7 +124,7 @@ class InfutorAirflowPipeline(core.Construct):
             _iam.ManagedPolicy.from_aws_managed_policy_name('service-role/AmazonEC2RoleforSSM'))
 
         #create the ec2 instance
-        instance_type = _ec2.InstanceType(instance_type)
+        ec2_instance_type = _ec2.InstanceType(ec2_instance_type)
         security_group = _ec2.SecurityGroup(self, id=f'{id}_sg', vpc=self.vpc,
                                             description='allow ssh to ec2 instance',
                                             security_group_name='not_at_all_secure_security_group',
@@ -148,11 +133,40 @@ class InfutorAirflowPipeline(core.Construct):
                                         description='ssh from anywhere')
 
         self.instance = _ec2.Instance(self, id=id, instance_name='InfutorAirflowEC2',
-                                      instance_type=instance_type,
+                                      instance_type=ec2_instance_type,
                                       machine_image=self.linux_ami,
                                       vpc=self.vpc,
                                       security_group=security_group
                                       )
+
+
+        # create secrets for db access and store arn in ssm
+        db_username = os.getenv('db_username')
+        secret_str_generator = _secrets.SecretStringGenerator(
+            secret_string_template=json.dumps({'username': db_username}), exclude_punctuation=True,
+            include_space=False, generate_string_key='password')
+
+        self.db_access_secret = _secrets.Secret(self, id=f'{id}_secret', secret_name='infutor_airflow_db_secret',
+                                                generate_secret_string=secret_str_generator,
+                                                removal_policy=self.removal_policy)
+
+        self.ssm_db_secret = _ssm.StringParameter(self, id=f'{id}_secret_ssm_param',
+                                                  parameter_name='infutor_airflow_db_ssm_secret',
+                                                  string_value=self.db_access_secret.secret_arn)
+
+
+        # create mysql rds
+        db_credentials = _rds.Credentials.from_secret(secret=self.db_access_secret, username=db_username)
+        db_engine = _rds.DatabaseInstanceEngine.MYSQL
+        db_name = os.getenv('rds_name')
+        rds_instance_type = _ec2.InstanceType('t2.micro')
+
+        self.mysql_db = _rds.DatabaseInstance(self, id=f'{id}_mysql_db', credentials=db_credentials,
+                                              engine=db_engine, database_name=db_name, instance_type=rds_instance_type,
+                                              allow_major_version_upgrade=False, vpc=self.vpc,
+                                              removal_policy=self.removal_policy, vpc_subnets=self.subnet_config,
+                                              security_groups=[security_group],
+                                              instance_identifier='infutor_airflow_mysql_instance')
 
 
 
