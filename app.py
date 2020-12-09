@@ -11,7 +11,7 @@ load_dotenv(dotenv_path=env_path)
 
 
 app = core.App()
-# stack = AwsCdkPocStack(app, id=os.getenv('stack_name'))
+
 stack = InfutorAirflowStack(app, id=os.getenv('airflow_stack_name'))
 
 stack.create_stack()

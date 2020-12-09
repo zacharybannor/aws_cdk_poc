@@ -1,5 +1,5 @@
 from aws_cdk import core
-from vmd_core_constructs.core_constructs import InfutorCoreS3, InfutorAirflowPipeline
+from core_constructs.core_constructs import InfutorAirflowPipeline
 from datetime import datetime
 import os
 

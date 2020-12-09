@@ -120,6 +120,9 @@ class InfutorAirflowPipeline(core.Construct):
                                                   parameter_name='infutor_airflow_db_secret',
                                                   string_value=self.db_access_secret.secret_arn)
 
+        #create mysql rds
+
+
         #define ami
         self.linux_ami = _ec2.MachineImage.latest_amazon_linux(
             generation=_ec2.AmazonLinuxGeneration.AMAZON_LINUX_2,
