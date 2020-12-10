@@ -136,7 +136,8 @@ class InfutorAirflowPipeline(core.Construct):
                                       instance_type=ec2_instance_type,
                                       machine_image=self.linux_ami,
                                       vpc=self.vpc,
-                                      security_group=security_group
+                                      security_group=security_group,
+                                      key_name=os.getenv('ec2_key_pair_name')
                                       )
 
 
@@ -166,7 +167,7 @@ class InfutorAirflowPipeline(core.Construct):
                                               allow_major_version_upgrade=False, vpc=self.vpc,
                                               removal_policy=self.removal_policy, vpc_subnets=self.subnet_config,
                                               security_groups=[security_group],
-                                              instance_identifier='infutor_airflow_mysql_instance')
+                                              instance_identifier='infutor-airflow-mysql-instance')
 
 
 
