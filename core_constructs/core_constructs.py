@@ -8,61 +8,10 @@ from aws_cdk import(
   aws_ssm as _ssm,
   aws_s3_assets as _assets)
 from datetime import datetime
+from pathlib import Path
 import os
 import json
 
-class InfutorCoreS3(core.Construct):
-  def __init__(self, scope: core.Construct, id: str, bucket_name: str, *, removal_policy: str='destroy',
-               access_control=_s3.BucketAccessControl.PRIVATE, block_public_access=_s3.BlockPublicAccess.BLOCK_ALL,
-               encryption=_s3.BucketEncryption.S3_MANAGED, **kwargs) -> None:
-      super().__init__(scope, id)
-
-      self.bucket_name = bucket_name
-      self.removal_policy = removal_policy
-      self.id = id
-      self.access_control = access_control
-      self.block_public_access = block_public_access
-      self.encryption = encryption
-      for k,v in kwargs.items():
-          setattr(self, k, v)
-
-      if not removal_policy.lower() == 'destroy':
-        rp = core.RemovalPolicy.RETAIN
-      else:
-        rp = core.RemovalPolicy.DESTROY
-
-      self.bucket = _s3.Bucket(self, id=id, bucket_name=bucket_name, removal_policy=rp, access_control=access_control,
-                  block_public_access=block_public_access, encryption=encryption, **kwargs)
-
-
-class InfutorCoreVPC(core.Construct):
-    def __init__(self, scope: core.Construct, id: str, *, max_azs: int=3, cidr=_ec2.Vpc.DEFAULT_CIDR_RANGE,
-                 default_instance_tenancy=_ec2.DefaultInstanceTenancy.DEFAULT,
-                 nat_gateways: int=0, subnet_config: str='public', **kwargs):
-        super().__init__(scope, id)
-
-        self.id = id
-        self.max_azs = max_azs
-        self.cidr = cidr
-        self.default_instance_tenancy = default_instance_tenancy
-        self.nat_gateways = nat_gateways
-
-        if subnet_config.lower() == 'public':
-            sub_conf = _ec2.SubnetType.PUBLIC
-        elif subnet_config.lower() == 'isolated':
-            sub_conf = _ec2.SubnetType.ISOLATED
-        else:
-            sub_conf = _ec2.SubnetType.PRIVATE
-
-        self.subnet_config = sub_conf
-
-        for k,v in kwargs.items():
-            setattr(self, k, v)
-
-        self.vpc = _ec2.Vpc(self, id=id, cidr=cidr, default_instance_tenancy=default_instance_tenancy,
-                            nat_gateways=nat_gateways,
-                            subnet_configuration=[_ec2.SubnetConfiguration(name='infutor_public',
-                                                                           subnet_type=self.subnet_config)], **kwargs)
 
 
 class InfutorAirflowPipeline(core.Construct):
@@ -108,6 +57,7 @@ class InfutorAirflowPipeline(core.Construct):
                                 block_public_access=block_public_access, encryption=encryption)
 
 
+
         #define ami
         self.linux_ami = _ec2.MachineImage.latest_amazon_linux(
             generation=_ec2.AmazonLinuxGeneration.AMAZON_LINUX_2,
@@ -139,6 +89,14 @@ class InfutorAirflowPipeline(core.Construct):
                                       security_group=security_group,
                                       key_name=os.getenv('ec2_key_pair_name')
                                       )
+
+        #run config script for ec2 instance
+        file_path = str(Path.cwd()) + '/scripts/ec2_config.sh'
+        self.config_script = _assets.Asset(self, id=f'{id}_ec2_congig_script', path=file_path)
+        local_path = self.instance.user_data.add_s3_download_command(bucket=self.bucket,
+                                                                     bucket_key=self.config_script.s3_object_key)
+        self.instance.user_data.add_execute_file_command(file_path=local_path)
+        self.config_script.grant_read(self.ec2_role)
 
 
         # create secrets for db access and store arn in ssm

@@ -26,7 +26,8 @@ setuptools.setup(
         "aws-cdk.aws_s3_assets",
         "aws-cdk.aws_secretsmanager",
         "aws-cdk.aws_ssm",
-        "aws-cdk.aws_rds"
+        "aws-cdk.aws_rds",
+        "aws-cdk.aws_s3_deployment"
         "python-dotenv"
     ],
 
